@@ -1,0 +1,93 @@
+# AdBlocker-iOS
+
+An iOS, easy-to-use implementation of Safari AdBlocker running off of RegexKitLite
+
+## Requirements
+
+AdBlocker-iOS requires an iOS platform (duh!) running iOS 4 or higher. ARC should be disabled for these classes, which can be done by adding the -fno-objc-arc flag in Build Phases. These frameworks/libraries should be linked to your project:
+
+* Foundation.framework
+* libicucore.dylib
+
+## Adding AdBlocker-iOS to your project
+
+Simply drag and drop the 6 class files to your project (don't forget the ARC thingy mentioned, if your project uses it). Drag and drop the adblocker_list.txt to your project bundle, making it accessible for later use.
+
+## Background Info & Usage
+
+AdBlocker-iOS is based on examining the regular expressions in a easylist and then determining if a URL passes (allow) or fails (block). The main function for this is `- (BOOL)examineURL:(NSString *)url;`, which returns `YES` if it needs to be blocked or `NO` if it can be allowed. Before any of this can be done, you'll need to first load a list of regular expressions. Fortunately, this project comes with the default easylist 2.0 ("adblock_list.txt") that you can use. Here's how you can do it:
+
+```objective-c
+
+[[AdBlocker sharedInstance] load:[DOCUMENTS stringByAppendingPathComponent:@"adblock_list.txt"]];
+
+```
+
+The "DOCUMENTS" is a macro for your Documents folder where the adblock_list.txt is stored. This can be changed to your `[[NSBundle mainBundle] pathForResource:@"adblock_list" forType:@"txt"];` but its preferred to move the list to your Documents folder (or any other r/w folder) for updating purposes. Updating your list to the latest version can also be done by using:
+
+```objective-c
+
+[[AdBlocker sharedInstance] checkForUpdates:[DOCUMENTS stringByAppendingPathComponent:@"adblock_list.txt"]];
+
+```
+
+Both these methods should be called in your `- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions` upon launch.
+
+There are two methods you can use to intercept a UIWebView's request to process a URL: `Custom NSURLCache` and `UIWebView's Delegate`.
+
+### Custom NSURLCache
+
+A custom NSURLCache class will allow you to "nullify" any data request sent out. To do this, import the "FilteredWebCache.h" and override your shared NSURLCache as such:
+
+```objective-c
+
+NSString *path = @"webcache";
+NSUInteger discCapacity = 10*1024*1024 //customizable
+NSUInteger memoryCapacity = 512*1024;
+    
+FilteredWebCache *cache =
+[[FilteredWebCache alloc] initWithMemoryCapacity: memoryCapacity
+                                        diskCapacity: discCapacity diskPath:path];
+[NSURLCache setSharedURLCache:cache];
+[cache release];
+
+```
+
+### UIWebView's Delegate
+
+Another effective way to intercept requests is through your UIWebView's delegate. This is limited to only UIWebViews instead of any other classes (NSURLConnection..etc.). Import "AdBlocker.h" in your class and use:
+
+```objective-c
+
+- (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
+    if ([[AdBlocker sharedInstance] examineURL:[request URL].absoluteString])
+        return NO;
+        
+    return YES;
+}
+
+```
+
+## Other Notes
+
+* Processing speeds for AdBlocker-iOS aren't so top-notch as one would like them to be. That's not to say though that the waiting period is that noticeable (~0.4 second/URL – that's just a rough guess). This is largely due to the fact that RegexKit is not available for iOS, so many of the caching features are subsequently unavailable.
+* The update URL can be customized to your own if you want to issue your own adblock lists; however, make sure you follow the [ADP filtering guidelines](https://adblockplus.org/en/filters) for each URL rule you design.
+
+## License
+
+* This code is distributed under the terms and conditions of the 3-clause BSD-style license:
+
+Copyright (c) 2013, Kevin Ko
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+3. Neither the name of the <ORGANIZATION> nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+* Thanks to martoche's [SafariAdBlock](https://github.com/martoche/safariadblock) and RegexKitLite
+
+
